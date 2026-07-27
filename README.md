@@ -3,8 +3,10 @@ Convert text in real-time into a JNO-compatible input format. Supports Chinese a
 
 v1.1 update: Font library update, Add line break support, Add bold/italic/bold-italic text styles.
 
-v1.2 update:Recently Used Fonts | Automatically added to the recently used list after creation (up to 10), displayed in a separate section at the top of the font dropdown
+v1.2 update: Recently Used Fonts | Automatically added to the recently used list after creation (up to 10), displayed in a separate section at the top of the font dropdown
 Font Management Popup | Settings → Font Management, check/uncheck to enable, supports search filtering
 Select All/Deselect All | One-click operation
 Settings Persistence | Language, theme, recently used, and disabled list settings are saved automatically
 Dropdown Structure | Auto-select → Recently Used → Other Fonts
+
+v1.3 update: Optimized software performance and fixed some issues.
