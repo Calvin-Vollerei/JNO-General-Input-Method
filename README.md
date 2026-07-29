@@ -10,3 +10,7 @@ Settings Persistence | Language, theme, recently used, and disabled list setting
 Dropdown Structure | Auto-select → Recently Used → Other Fonts
 
 v1.3 update: Optimized software performance and fixed some issues.
+
+v1.4: Added 6 new personalized themes and a font search feature.
+
+v1.5: Added help and check for updates, upgraded the original settings option to general, added a minimize to taskbar on close feature, and optimized the font search function.
