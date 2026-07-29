@@ -1,4 +1,4 @@
-"""字体扫描、选择、样式增强"""
+"""字体扫描、选择、样式增强、UI 字体查找"""
 
 import glob
 import os
@@ -21,7 +21,8 @@ def get_font_dirs() -> List[str]:
         if la:
             dirs.append(os.path.join(la, "Microsoft", "Windows", "Fonts"))
         for pf in [os.environ.get("PROGRAMFILES", "C:/Program Files"),
-                   os.environ.get("PROGRAMFILES(X86)", "C:/Program Files (x86)")]:
+                   os.environ.get("PROGRAMFILES(X86)",
+                                  "C:/Program Files (x86)")]:
             if pf:
                 dirs.append(os.path.join(pf, "Common Files", "Fonts"))
     elif sys.platform == "darwin":
@@ -33,7 +34,13 @@ def get_font_dirs() -> List[str]:
     return [d for d in dirs if os.path.isdir(d)]
 
 
+_font_cache: List[Tuple[str, str]] | None = None
+
+
 def scan_fonts() -> List[Tuple[str, str]]:
+    global _font_cache
+    if _font_cache is not None:
+        return _font_cache
     fonts = []
     seen = set()
     for fd in get_font_dirs():
@@ -49,7 +56,25 @@ def scan_fonts() -> List[Tuple[str, str]]:
         not any(k in x[0].lower() for k in cn_kw),
         x[0].lower(),
     ))
+    _font_cache = fonts
     return fonts
+
+
+def find_ui_font() -> str:
+    """查找 HarmonyOS Sans SC Bold 用于界面控件，找不到返回第一个可用字体"""
+    from config import DEFAULT_UI_FONT, DEFAULT_UI_FONT_FALLBACKS
+    all_f = scan_fonts()
+    for target in [DEFAULT_UI_FONT] + DEFAULT_UI_FONT_FALLBACKS:
+        tl = target.lower()
+        for name, path in all_f:
+            if tl == name.lower():
+                return path
+        for name, path in all_f:
+            if tl in name.lower():
+                return path
+    if all_f:
+        return all_f[0][1]
+    return ""
 
 
 def pick_font(pref: str | None, all_f: List[Tuple[str, str]]) -> str:
@@ -106,17 +131,19 @@ def apply_italic(mask: Image.Image) -> Image.Image:
 def render_text_mask(text: str, font_path: str, style: int,
                      hires_h: int, hires_w: int) -> Image.Image:
     """style: 0=normal, 1=bold, 2=italic, 3=bold+italic"""
-    # 尝试原生字体变体
     if style == 1:
-        bf = _detect_variant(font_path, ["b", "bd", "bold", "B", "Bd", "Bold"])
+        bf = _detect_variant(font_path,
+                             ["b", "bd", "bold", "B", "Bd", "Bold"])
         if bf:
             font_path, style = bf, 0
     elif style == 2:
-        it = _detect_variant(font_path, ["i", "it", "italic", "I", "It", "Italic"])
+        it = _detect_variant(font_path,
+                             ["i", "it", "italic", "I", "It", "Italic"])
         if it:
             font_path, style = it, 0
     elif style == 3:
-        bi = _detect_variant(font_path, ["bi", "z", "BoldItalic", "bolditalic"])
+        bi = _detect_variant(
+            font_path, ["bi", "z", "BoldItalic", "bolditalic"])
         if bi:
             font_path, style = bi, 0
 
@@ -133,7 +160,6 @@ def render_text_mask(text: str, font_path: str, style: int,
         draw.text(((hires_w - tw) // 2 - bbox[0], y_off),
                   line, fill=255, font=font)
 
-    # 粗体模拟
     if style == 1 or style == 3:
         mask2 = Image.new("L", (hires_w, hires_h), 0)
         draw2 = ImageDraw.Draw(mask2)
@@ -150,7 +176,6 @@ def render_text_mask(text: str, font_path: str, style: int,
                 if px2[x, y] > 0:
                     px1[x, y] = 255
 
-    # 斜体模拟
     if style == 2 or style == 3:
         mask = apply_italic(mask)
 

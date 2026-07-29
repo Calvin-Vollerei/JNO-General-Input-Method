@@ -5,6 +5,7 @@ import os
 
 # ── 常量 ──
 
+VERSION = "1.5"
 MAX_BYTES = 30000
 BASE_ROWS = 240
 SCALE_MAX = 1.0
@@ -16,65 +17,73 @@ MAX_RECENT_FONTS = 10
 AUTHOR_GITHUB = "https://github.com/Calvin-Vollerei"
 AUTHOR_BILIBILI = "https://space.bilibili.com/400975747"
 
-# ── 主题名 ──
+DEFAULT_UI_FONT = "HarmonyOS Sans SC Bold"
+DEFAULT_UI_FONT_FALLBACKS = [
+    "HarmonyOS Sans SC", "HarmonyOS_Sans_SC_Bold",
+    "HarmonyOS_Sans_SC", "Microsoft YaHei UI Bold",
+    "Microsoft YaHei UI", "Segoe UI Bold", "Segoe UI",
+]
 
 THEME_NAMES = ["高雅灰", "典雅黑", "简洁白", "希儿紫", "天依蓝", "初音绿"]
 THEME_NAMES_EN = ["Gray", "Dark", "White", "Seele", "Tianyi", "Miku"]
 
-# ── 主题色 ──
-
 THEMES = {
     "高雅灰": {
         "bg": "#f0f0f0", "fg": "#333333",
-        "result_bg": "#ffffff", "result_fg": "#333333",
-        "entry_bg": "#ffffff", "entry_fg": "#000000",
-        "status_bg": "#e0e0e0", "status_fg": "#555555",
-        "btn_bg": "#e0e0e0", "btn_fg": "#000000",
-        "list_bg": "#ffffff", "list_fg": "#000000",
+        "result_bg": "#ffffff", "result_fg": "#222222",
+        "entry_bg": "#ffffff", "entry_fg": "#111111",
+        "status_bg": "#e0e0e0", "status_fg": "#444444",
+        "btn_bg": "#dcdcdc", "btn_fg": "#111111",
+        "list_bg": "#ffffff", "list_fg": "#111111",
+        "select_bg": "#0078d4", "select_fg": "#ffffff",
     },
     "典雅黑": {
-        "bg": "#1e1e1e", "fg": "#cccccc",
-        "result_bg": "#252525", "result_fg": "#dddddd",
-        "entry_bg": "#2d2d2d", "entry_fg": "#ffffff",
-        "status_bg": "#333333", "status_fg": "#aaaaaa",
-        "btn_bg": "#3a3a3a", "btn_fg": "#dddddd",
-        "list_bg": "#2d2d2d", "list_fg": "#dddddd",
+        "bg": "#1e1e1e", "fg": "#dddddd",
+        "result_bg": "#252525", "result_fg": "#e8e8e8",
+        "entry_bg": "#2d2d2d", "entry_fg": "#f0f0f0",
+        "status_bg": "#333333", "status_fg": "#bbbbbb",
+        "btn_bg": "#3a3a3a", "btn_fg": "#eeeeee",
+        "list_bg": "#2d2d2d", "list_fg": "#f0f0f0",
+        "select_bg": "#0078d4", "select_fg": "#ffffff",
     },
     "简洁白": {
         "bg": "#ffffff", "fg": "#333333",
-        "result_bg": "#f5f5f5", "result_fg": "#333333",
-        "entry_bg": "#ffffff", "entry_fg": "#000000",
-        "status_bg": "#eeeeee", "status_fg": "#666666",
-        "btn_bg": "#e8e8e8", "btn_fg": "#000000",
-        "list_bg": "#ffffff", "list_fg": "#000000",
+        "result_bg": "#f8f8f8", "result_fg": "#222222",
+        "entry_bg": "#ffffff", "entry_fg": "#111111",
+        "status_bg": "#f0f0f0", "status_fg": "#555555",
+        "btn_bg": "#e8e8e8", "btn_fg": "#111111",
+        "list_bg": "#ffffff", "list_fg": "#111111",
+        "select_bg": "#0078d4", "select_fg": "#ffffff",
     },
     "希儿紫": {
-        "bg": "#3d3a63", "fg": "#d0cce8",
-        "result_bg": "#252530", "result_fg": "#d0cce8",
-        "entry_bg": "#2d2b45", "entry_fg": "#e8e0ff",
-        "status_bg": "#2a2840", "status_fg": "#b0a8d0",
-        "btn_bg": "#4a4780", "btn_fg": "#e8e0ff",
-        "list_bg": "#2d2b45", "list_fg": "#d0cce8",
+        "bg": "#3d3a63", "fg": "#e0d8f0",
+        "result_bg": "#252235", "result_fg": "#e0d8f0",
+        "entry_bg": "#2d2a50", "entry_fg": "#f0e8ff",
+        "status_bg": "#2a2740", "status_fg": "#c0b8e0",
+        "btn_bg": "#4a4780", "btn_fg": "#f0e8ff",
+        "list_bg": "#2d2a50", "list_fg": "#f0e8ff",
+        "select_bg": "#8b7ec8", "select_fg": "#ffffff",
     },
     "天依蓝": {
-        "bg": "#3a5a78", "fg": "#c8ddf0",
-        "result_bg": "#1e2a35", "result_fg": "#c8ddf0",
-        "entry_bg": "#243545", "entry_fg": "#e0f0ff",
-        "status_bg": "#1e2e3c", "status_fg": "#a0c0d8",
-        "btn_bg": "#4a7090", "btn_fg": "#e0f0ff",
-        "list_bg": "#243545", "list_fg": "#c8ddf0",
+        "bg": "#3a5a78", "fg": "#d8e8f8",
+        "result_bg": "#1e2a38", "result_fg": "#d8e8f8",
+        "entry_bg": "#243548", "entry_fg": "#f0f8ff",
+        "status_bg": "#1e2e3c", "status_fg": "#b0c8e0",
+        "btn_bg": "#4a7090", "btn_fg": "#f0f8ff",
+        "list_bg": "#243548", "list_fg": "#f0f8ff",
+        "select_bg": "#5b9bd5", "select_fg": "#ffffff",
     },
     "初音绿": {
-        "bg": "#2a7a72", "fg": "#c0ece6",
-        "result_bg": "#1a2a28", "result_fg": "#c0ece6",
-        "entry_bg": "#1e3532", "entry_fg": "#d0fff8",
-        "status_bg": "#1a2e2a", "status_fg": "#90c8c0",
-        "btn_bg": "#3a9088", "btn_fg": "#d0fff8",
-        "list_bg": "#1e3532", "list_fg": "#c0ece6",
+        "bg": "#2a7a72", "fg": "#d0f0ec",
+        "result_bg": "#1a2a28", "result_fg": "#d0f0ec",
+        "entry_bg": "#1e3532", "entry_fg": "#e8fff8",
+        "status_bg": "#1a2e2a", "status_fg": "#a0d8d0",
+        "btn_bg": "#3a9088", "btn_fg": "#e8fff8",
+        "list_bg": "#1e3532", "list_fg": "#e8fff8",
+        "select_bg": "#4db8ac", "select_fg": "#ffffff",
     },
 }
 
-# ── 配置持久化 ──
 
 def _config_dir():
     d = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")),
@@ -99,7 +108,6 @@ def save_config(cfg: dict):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(cfg, f, ensure_ascii=False, indent=2)
 
-# ── 国际化 ──
 
 T = {
     "zh": {
@@ -132,9 +140,12 @@ T = {
         "input_warning": "请输入文本",
         "error": "错误",
         "missing_pillow": "请先安装 pillow:\npip install pillow",
-        "settings": "设置",
+        "settings": "通用",
         "language": "语言",
         "theme": "主题",
+        "close_action": "关闭窗口时:",
+        "close_exit": "退出程序",
+        "close_minimize": "最小化到任务栏",
         "font_manager": "字体管理",
         "font_manager_title": "字体管理",
         "font_enable_all": "全选",
@@ -146,7 +157,7 @@ T = {
         "about": "关于",
         "about_title": "关于 JNO通用输入法",
         "about_text": (
-            "JNO通用输入法 v1.4\n\n"
+            "JNO通用输入法 v1.5\n\n"
             "将文字转换为适用于JNO Label的形式。\n"
             "基于 PIL 渲染 + 最近邻降采样，\n"
             "支持全 Windows 字体库。\n\n"
@@ -160,6 +171,31 @@ T = {
         "fonts_total": "共 {} 个字体",
         "apply": "应用",
         "close": "关闭",
+        "no_font": "未找到 HarmonyOS Sans SC Bold，使用备用字体",
+        "help": "帮助",
+        "help_title": "JNO通用输入法 — 帮助",
+        "help_text": (
+            "【快捷键】\n"
+            "  Enter         —  输入框中换行\n"
+            "  Ctrl+Enter    —  生成点阵\n"
+            "  搜索框回车     —  搜索字体并弹出下拉\n\n"
+            "【功能】\n"
+            "  字体搜索  —  在搜索框输入关键字，点击搜索按钮\n"
+            "  字体管理  —  通用 → 字体管理，勾选启用的字体\n"
+            "  样式      —  常规 / 加粗 / 斜体 / 粗斜体\n"
+            "  横排/竖排 —  勾选「竖排」切换排版方向\n"
+            "  主题      —  通用中选择 6 套配色\n"
+            "  字节上限  —  控制输出大小，自动缩放适配\n\n"
+            "【输出】\n"
+            "  输出结果可粘贴到JNO Label\n"
+            "  也可保存为 .txt 文件"
+        ),
+        "update": "检查更新",
+        "update_checking": "正在检查更新...",
+        "update_latest": "当前已是最新版本 v{}",
+        "update_available": "发现新版本 v{}\n当前版本 v{}\n\n是否前往下载？",
+        "update_error": "检查更新失败：{}",
+        "version": "版本",
     },
     "en": {
         "title": "JNO Input Method",
@@ -191,9 +227,12 @@ T = {
         "input_warning": "Please enter text",
         "error": "Error",
         "missing_pillow": "Please install pillow:\npip install pillow",
-        "settings": "Settings",
+        "settings": "General",
         "language": "Language",
         "theme": "Theme",
+        "close_action": "On window close:",
+        "close_exit": "Exit",
+        "close_minimize": "Minimize to taskbar",
         "font_manager": "Font Manager",
         "font_manager_title": "Font Manager",
         "font_enable_all": "Select All",
@@ -205,7 +244,7 @@ T = {
         "about": "About",
         "about_title": "About JNO Input Method",
         "about_text": (
-            "JNO Input Method v1.4\n\n"
+            "JNO Input Method v1.5\n\n"
             "Convert text to JNO Label format.\n"
             "Based on PIL + nearest-neighbor,\n"
             "Full Windows font library.\n\n"
@@ -219,5 +258,30 @@ T = {
         "fonts_total": "Total {} fonts",
         "apply": "Apply",
         "close": "Close",
+        "no_font": "HarmonyOS Sans SC Bold not found, using fallback",
+        "help": "Help",
+        "help_title": "JNO Input Method — Help",
+        "help_text": (
+            "[Shortcuts]\n"
+            "  Enter          —  New line in input box\n"
+            "  Ctrl+Enter     —  Generate dot art\n"
+            "  Enter in search —  Search fonts & popup list\n\n"
+            "[Features]\n"
+            "  Font Search  —  Type keyword in search box, click Search\n"
+            "  Font Manager —  General → Font Manager, check enabled fonts\n"
+            "  Style        —  Normal / Bold / Italic / Bold Italic\n"
+            "  Horizontal/Vertical — Check 「Vertical」to switch\n"
+            "  Theme        —  Choose from 6 color schemes\n"
+            "  Byte Limit   —  Auto-scale output to fit\n\n"
+            "[Output]\n"
+            "  Output can be pasted to JNO Label\n"
+            "  Or saved as .txt file"
+        ),
+        "update": "Check Update",
+        "update_checking": "Checking for updates...",
+        "update_latest": "You are on the latest version v{}",
+        "update_available": "New version v{} available\nCurrent version v{}\n\nGo to download?",
+        "update_error": "Update check failed: {}",
+        "version": "Version",
     },
 }

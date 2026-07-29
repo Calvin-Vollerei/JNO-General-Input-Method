@@ -11,7 +11,7 @@ class SettingsDialog(tk.Toplevel):
         self.app = app
         self.t = app.t
         self.title(self.t("settings"))
-        self.geometry("320x160")
+        self.geometry("340x220")
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
@@ -22,50 +22,54 @@ class SettingsDialog(tk.Toplevel):
         f = ttk.Frame(self, padding=15)
         f.pack(fill=tk.BOTH, expand=True)
 
-        # ── 语言 ──
+        row = 0
+
         ttk.Label(f, text=self.t("language") + ":").grid(
-            row=0, column=0, sticky=tk.W, pady=5)
+            row=row, column=0, sticky=tk.W, pady=5)
         lv = tk.StringVar(value=self.app.lang)
         lc = ttk.Combobox(f, textvariable=lv, values=["zh", "en"],
                           state="readonly", width=8)
-        lc.grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
+        lc.grid(row=row, column=1, sticky=tk.W, pady=5, padx=5)
         lc.bind("<<ComboboxSelected>>",
                 lambda e: setattr(self.app, 'lang', lv.get()))
+        row += 1
 
-        # ── 主题 ──
         ttk.Label(f, text=self.t("theme") + ":").grid(
-            row=1, column=0, sticky=tk.W, pady=5)
+            row=row, column=0, sticky=tk.W, pady=5)
 
         from config import THEME_NAMES_EN
-        if self.app.lang == "en":
-            theme_list = THEME_NAMES_EN
-        else:
-            theme_list = THEME_NAMES
-
-        # 当前主题名映射到显示语言
-        current_idx = 0
-        for i, cn in enumerate(THEME_NAMES):
-            if cn == self.app.theme_name:
-                current_idx = i
-                break
-        display_name = theme_list[current_idx]
-
-        tv = tk.StringVar(value=display_name)
-        tc = ttk.Combobox(f, textvariable=tv, values=theme_list,
+        names = THEME_NAMES_EN if self.app.lang == "en" else THEME_NAMES
+        tv = tk.StringVar(value=self.app.theme_name)
+        tc = ttk.Combobox(f, textvariable=tv, values=names,
                           state="readonly", width=8)
-        tc.grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
+        tc.grid(row=row, column=1, sticky=tk.W, pady=5, padx=5)
+        row += 1
+
+        ttk.Label(f, text=self.t("close_action")).grid(
+            row=row, column=0, sticky=tk.W, pady=5)
+        close_var = tk.StringVar(
+            value=self.t("close_minimize")
+            if self.app.close_minimize
+            else self.t("close_exit"))
+        cc = ttk.Combobox(f, textvariable=close_var,
+                          values=[self.t("close_exit"),
+                                  self.t("close_minimize")],
+                          state="readonly", width=12)
+        cc.grid(row=row, column=1, sticky=tk.W, pady=5, padx=5)
+        row += 1
 
         def _apply():
-            # 把显示名转回内部中文名
-            sel = tv.get()
-            idx = theme_list.index(sel) if sel in theme_list else 0
-            self.app.theme_name = THEME_NAMES[idx]
+            self.app.lang = lv.get()
+            self.app.theme_name = tv.get()
+            self.app.close_minimize = (
+                close_var.get() == self.t("close_minimize"))
             self.app.save_settings()
             self.app.apply_theme()
+            self.app.rebuild()   # 语言/关闭行为可能需刷新
             self.destroy()
 
         ttk.Button(f, text=self.t("apply"), command=_apply).grid(
-            row=2, column=0, columnspan=2, pady=12)
+            row=row, column=0, columnspan=2, pady=12)
 
     def _center(self, p):
         self.update_idletasks()

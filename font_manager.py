@@ -37,7 +37,6 @@ class FontManagerDialog(tk.Toplevel):
         return self._th()["list_fg"]
 
     def _build(self):
-        # ── 顶部搜索栏 ──
         top = ttk.Frame(self, padding=8)
         top.pack(fill=tk.X)
 
@@ -67,12 +66,10 @@ class FontManagerDialog(tk.Toplevel):
         ttk.Button(top, text=self.t("font_disable_all"),
                    command=self._sel_none).pack(side=tk.LEFT, padx=2)
 
-        # ── 计数标签 ──
         self._cnt = ttk.Label(self, text="", font=("", 9))
         self._cnt.pack(anchor=tk.W, padx=10, pady=(0, 3))
         self._upd_cnt()
 
-        # ── 可滚动列表 ──
         lc = ttk.Frame(self)
         lc.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
         self._canvas = tk.Canvas(lc, highlightthickness=0, bg=self._bg())
@@ -99,7 +96,6 @@ class FontManagerDialog(tk.Toplevel):
 
         self._populate()
 
-        # ── 底部按钮 ──
         bf = ttk.Frame(self)
         bf.pack(fill=tk.X, padx=8, pady=5)
         ttk.Button(bf, text=self.t("apply"), command=self._apply).pack(
