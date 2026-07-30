@@ -14,3 +14,5 @@ v1.3 update: Optimized software performance and fixed some issues.
 v1.4: Added 6 new personalized themes and a font search feature.
 
 v1.5: Added help and check for updates, upgraded the original settings option to general, added a minimize to taskbar on close feature, and optimized the font search function.
+
+v1.6: Fixed some display issues after changing themes, added a history feature to track and save generated content, one-click recall, the UI now uses brand-new open-source fonts for a better reading experience, some underlying parts were refactored, and startup and rendering performance were improved.
