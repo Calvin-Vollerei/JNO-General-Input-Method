@@ -1,17 +1,18 @@
-"""JNO通用输入法 主 GUI — v1.5"""
+"""JNO通用输入法 主 GUI — v1.6"""
 
 import json
 import os
 import sys
 import threading
+import time
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import urllib.request
 import webbrowser
-from typing import List, Set
+from typing import List, Set, Dict
 
 from config import (
-    VERSION, MAX_BYTES, MAX_RECENT_FONTS, THEMES, THEME_NAMES,
+    VERSION, MAX_BYTES, MAX_RECENT_FONTS, THEMES,
     T, load_config, save_config,
     AUTHOR_GITHUB, AUTHOR_BILIBILI,
 )
@@ -19,17 +20,17 @@ from font_utils import scan_fonts, find_ui_font
 from renderer import generate
 from font_manager import FontManagerDialog
 from settings import SettingsDialog
+from history_dialog import HistoryDialog
 from ui_utils import apply_round_corners, register_ui_font
 
 
 def _ver_gt(v1: str, v2: str) -> bool:
-    """Return True if v1 > v2, using semantic version comparison."""
     try:
         p1 = [int(x) for x in v1.split(".")]
         p2 = [int(x) for x in v2.split(".")]
         return p1 > p2
     except Exception:
-        return v1 > v2  # fallback to string compare
+        return v1 > v2
 
 
 class App:
@@ -46,6 +47,10 @@ class App:
         self.close_minimize = cfg.get("close_minimize", False)
         self.recent_fonts: List[str] = cfg.get("recent_fonts", [])
         self.disabled_fonts: Set[str] = set(cfg.get("disabled_fonts", []))
+        self.favorites: List[Dict] = cfg.get("favorites", [])
+
+        self.history: List[Dict] = []
+        self._last_result = ""          # 最新一条结果，供复制按钮用
 
         apply_round_corners(self.root)
         self._ui_font_path = find_ui_font()
@@ -65,6 +70,7 @@ class App:
             "close_minimize": self.close_minimize,
             "recent_fonts": self.recent_fonts,
             "disabled_fonts": list(self.disabled_fonts),
+            "favorites": self.favorites,
         })
 
     def t(self, key: str, *args) -> str:
@@ -99,7 +105,6 @@ class App:
     def _build_menubar(self):
         mb = tk.Menu(self.root)
 
-        # ── 通用 ──
         m1 = tk.Menu(mb, tearoff=0)
         m1.add_command(label=self.t("settings"),
                        command=lambda: SettingsDialog(self.root, self))
@@ -107,7 +112,6 @@ class App:
                        command=self._open_fm)
         mb.add_cascade(label=self.t("settings"), menu=m1)
 
-        # ── 关于 ──
         m2 = tk.Menu(mb, tearoff=0)
         m2.add_command(label=self.t("github"),
                        command=lambda: webbrowser.open(AUTHOR_GITHUB))
@@ -116,15 +120,17 @@ class App:
         m2.add_separator()
         m2.add_command(label=self.t("about_title"),
                        command=lambda: messagebox.showinfo(
-                           self.t("about_title"), self.t("about_text")))
+                           self.t("about_title"),
+                           self.t("about_text").format(version=VERSION)))
         mb.add_cascade(label=self.t("about"), menu=m2)
 
-        # ── 帮助 ──
         mb.add_command(label=self.t("help"),
                        command=lambda: messagebox.showinfo(
                            self.t("help_title"), self.t("help_text")))
 
-        # ── 检查更新 ──
+        mb.add_command(label=self.t("history"),
+                       command=self._open_history)
+
         mb.add_command(label=self.t("update"),
                        command=self._check_update)
 
@@ -140,9 +146,7 @@ class App:
         self.text_entry = tk.Text(main, height=2, font=("", 13), wrap=tk.WORD)
         self.text_entry.pack(fill=tk.X, pady=(3, 2))
         self.text_entry.bind("<Control-Return>", lambda e: self._generate())
-        self.text_entry.bind(
-            "<Return>",
-            lambda e: (self.text_entry.insert(tk.INSERT, "\n"), "break"))
+        self.text_entry.bind("<Return>", self._handle_return)
 
         ttk.Label(main, text=self.t("newline_hint"),
                   foreground="gray", font=("", 8)).pack(
@@ -161,7 +165,6 @@ class App:
         self._font_search_entry.pack(side=tk.LEFT)
         self._font_filter_placeholder = self.t("font_search")
         self._font_filter_var.set(self._font_filter_placeholder)
-        self._font_search_entry.config(foreground="gray")
         self._font_search_entry.bind("<FocusIn>", self._on_filter_focus_in)
         self._font_search_entry.bind("<FocusOut>", self._on_filter_focus_out)
         self._font_search_entry.bind(
@@ -221,7 +224,7 @@ class App:
         self.status_label = sl
 
         self.result_text = scrolledtext.ScrolledText(
-            main, wrap=tk.NONE, font=("Consolas", 10))
+            main, wrap=tk.CHAR, font=("Consolas", 10))
         self.result_text.pack(fill=tk.BOTH, expand=True)
 
         btm = ttk.Frame(main)
@@ -232,13 +235,17 @@ class App:
                    command=self._save).pack(side=tk.LEFT, padx=2)
         ttk.Button(btm, text=self.t("clear"),
                    command=self._clear).pack(side=tk.LEFT, padx=2)
-        ttk.Label(btm, text=self.t("fonts_total", len(self._get_enabled())),
-                  foreground="gray", font=("", 8)).pack(side=tk.RIGHT)
 
         cf = ttk.Frame(self.root)
         cf.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=(0, 3))
         ttk.Label(cf, text=self.t("copyright"),
                   font=("", 7)).pack(side=tk.RIGHT)
+
+    # ═══════════════ 换行修复 ═══════════════
+
+    def _handle_return(self, event):
+        self.text_entry.insert(tk.INSERT, "\n")
+        return "break"
 
     # ═══════════════ 字体搜索 ═══════════════
 
@@ -267,7 +274,8 @@ class App:
     def _on_filter_focus_in(self, e):
         if self._font_filter_var.get() == self._font_filter_placeholder:
             self._font_filter_var.set("")
-            e.widget.config(foreground="black")
+            th = THEMES.get(self.theme_name, THEMES["高雅灰"])
+            e.widget.config(foreground=th["entry_fg"])
 
     def _on_filter_focus_out(self, e):
         if not self._font_filter_var.get().strip():
@@ -331,6 +339,8 @@ class App:
                      selectbackground=th["select_bg"],
                      selectforeground=th["select_fg"],
                      borderwidth=0)
+        st.map("TCombobox",
+               fieldbackground=[("readonly", th["entry_bg"])])
         st.configure("TSpinbox",
                      fieldbackground=th["entry_bg"],
                      background=th["entry_bg"],
@@ -346,6 +356,11 @@ class App:
                      selectbackground=th["select_bg"],
                      selectforeground=th["select_fg"],
                      borderwidth=0)
+        st.configure("TNotebook", background=th["bg"], borderwidth=0)
+        st.configure("TNotebook.Tab", background=th["tab_bg"],
+                     foreground=th["tab_fg"], font=fn, padding=(12, 4))
+        st.map("TNotebook.Tab",
+               background=[("selected", th["tab_active_bg"])])
 
         self.status_label.configure(bg=th["status_bg"],
                                     fg=th["status_fg"],
@@ -357,6 +372,16 @@ class App:
         self.result_text.configure(bg=th["result_bg"],
                                    fg=th["result_fg"],
                                    insertbackground=th["result_fg"])
+
+        if self._font_filter_var.get() != self._font_filter_placeholder:
+            self._font_search_entry.config(foreground=th["entry_fg"])
+
+        for cb in [self.font_combo, self.style_combo]:
+            try:
+                cb.config(state="normal")
+                cb.config(state="readonly")
+            except Exception:
+                pass
 
     # ═══════════════ 生成 ═══════════════
 
@@ -389,6 +414,7 @@ class App:
         v = self.vertical_var.get()
         mb = self.bytes_var.get()
         stl = self._get_style()
+        style_name = self.style_var.get()
 
         self.gen_btn.config(state=tk.DISABLED,
                             text=self.t("generating"))
@@ -404,15 +430,35 @@ class App:
                 msg = str(exc)
                 self.root.after(0, lambda m=msg: self._on_err(m))
                 return
-            self.root.after(0, lambda res=r: self._on_done(res))
+            entry = {
+                "text": text,
+                "font": fs if fs else "自动",
+                "style": stl,
+                "style_name": style_name,
+                "vertical": v,
+                "result": r,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            self.root.after(0, lambda: self._on_done(r, entry))
 
         threading.Thread(target=_run, daemon=True).start()
 
-    def _on_done(self, r):
-        self.result_text.delete("1.0", tk.END)
-        self.result_text.insert("1.0", r)
-        self.status_var.set(
-            self.t("done", r.count("<br>"), len(r.encode("utf-8"))))
+    def _on_done(self, r: str, entry: dict = None):
+        self._last_result = r
+
+        current = self.result_text.get("1.0", tk.END).rstrip()
+        if current:
+            self.result_text.insert(tk.END, "\n" + r)
+        else:
+            self.result_text.delete("1.0", tk.END)
+            self.result_text.insert("1.0", r)
+
+        if entry:
+            self.history.append(entry)
+
+        size = len(r.encode("utf-8"))
+        lines = r.count("<br>")
+        self.status_var.set(self.t("done", lines, size))
         self.gen_btn.config(state=tk.NORMAL, text=self.t("generate"))
         self._refresh_font_combo()
 
@@ -424,10 +470,9 @@ class App:
     # ═══════════════ 操作 ═══════════════
 
     def _copy(self):
-        c = self.result_text.get("1.0", tk.END).rstrip()
-        if c:
+        if self._last_result:
             self.root.clipboard_clear()
-            self.root.clipboard_append(c)
+            self.root.clipboard_append(self._last_result)
             self.status_var.set(self.t("copied"))
         else:
             messagebox.showinfo(self.t("title"),
@@ -450,6 +495,7 @@ class App:
 
     def _clear(self):
         self.result_text.delete("1.0", tk.END)
+        self._last_result = ""
         self.status_var.set(self.t("cleared"))
 
     def _open_fm(self):
@@ -457,10 +503,12 @@ class App:
         self.root.wait_window(d)
         self.rebuild()
 
+    def _open_history(self):
+        HistoryDialog(self.root, self)
+
     # ═══════════════ 更新检查 ═══════════════
 
     def _check_update(self):
-        """异步检查 GitHub 最新版本（仅当更高时才提示更新）"""
         self.status_var.set(self.t("update_checking"))
 
         def _run():

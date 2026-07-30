@@ -5,7 +5,7 @@ import os
 
 # ── 常量 ──
 
-VERSION = "1.5"
+VERSION = "1.6"
 MAX_BYTES = 30000
 BASE_ROWS = 240
 SCALE_MAX = 1.0
@@ -36,6 +36,8 @@ THEMES = {
         "btn_bg": "#dcdcdc", "btn_fg": "#111111",
         "list_bg": "#ffffff", "list_fg": "#111111",
         "select_bg": "#0078d4", "select_fg": "#ffffff",
+        "tab_bg": "#d8d8d8", "tab_fg": "#333333",
+        "tab_active_bg": "#f0f0f0",
     },
     "典雅黑": {
         "bg": "#1e1e1e", "fg": "#dddddd",
@@ -45,6 +47,8 @@ THEMES = {
         "btn_bg": "#3a3a3a", "btn_fg": "#eeeeee",
         "list_bg": "#2d2d2d", "list_fg": "#f0f0f0",
         "select_bg": "#0078d4", "select_fg": "#ffffff",
+        "tab_bg": "#2a2a2a", "tab_fg": "#aaaaaa",
+        "tab_active_bg": "#1e1e1e",
     },
     "简洁白": {
         "bg": "#ffffff", "fg": "#333333",
@@ -54,6 +58,8 @@ THEMES = {
         "btn_bg": "#e8e8e8", "btn_fg": "#111111",
         "list_bg": "#ffffff", "list_fg": "#111111",
         "select_bg": "#0078d4", "select_fg": "#ffffff",
+        "tab_bg": "#e0e0e0", "tab_fg": "#333333",
+        "tab_active_bg": "#ffffff",
     },
     "希儿紫": {
         "bg": "#3d3a63", "fg": "#e0d8f0",
@@ -63,6 +69,8 @@ THEMES = {
         "btn_bg": "#4a4780", "btn_fg": "#f0e8ff",
         "list_bg": "#2d2a50", "list_fg": "#f0e8ff",
         "select_bg": "#8b7ec8", "select_fg": "#ffffff",
+        "tab_bg": "#2d2a50", "tab_fg": "#c0b8e0",
+        "tab_active_bg": "#3d3a63",
     },
     "天依蓝": {
         "bg": "#3a5a78", "fg": "#d8e8f8",
@@ -72,6 +80,8 @@ THEMES = {
         "btn_bg": "#4a7090", "btn_fg": "#f0f8ff",
         "list_bg": "#243548", "list_fg": "#f0f8ff",
         "select_bg": "#5b9bd5", "select_fg": "#ffffff",
+        "tab_bg": "#243548", "tab_fg": "#b0c8e0",
+        "tab_active_bg": "#3a5a78",
     },
     "初音绿": {
         "bg": "#2a7a72", "fg": "#d0f0ec",
@@ -81,6 +91,8 @@ THEMES = {
         "btn_bg": "#3a9088", "btn_fg": "#e8fff8",
         "list_bg": "#1e3532", "list_fg": "#e8fff8",
         "select_bg": "#4db8ac", "select_fg": "#ffffff",
+        "tab_bg": "#1e3532", "tab_fg": "#a0d8d0",
+        "tab_active_bg": "#2a7a72",
     },
 }
 
@@ -121,7 +133,7 @@ T = {
         "search_btn": "搜索",
         "vertical": "竖排",
         "byte_limit": "字节上限:",
-        "style": "样式:",
+        "style": "样式",
         "style_normal": "常规",
         "style_bold": "加粗",
         "style_italic": "斜体",
@@ -157,7 +169,7 @@ T = {
         "about": "关于",
         "about_title": "关于 JNO通用输入法",
         "about_text": (
-            "JNO通用输入法 v1.5\n\n"
+            "JNO通用输入法 v{version}\n\n"
             "将文字转换为适用于JNO Label的形式。\n"
             "基于 PIL 渲染 + 最近邻降采样，\n"
             "支持全 Windows 字体库。\n\n"
@@ -196,6 +208,19 @@ T = {
         "update_available": "发现新版本 v{}\n当前版本 v{}\n\n是否前往下载？",
         "update_error": "检查更新失败：{}",
         "version": "版本",
+        "history": "历史记录",
+        "history_title": "历史记录与收藏",
+        "history_tab_recent": "历史记录",
+        "history_tab_favorites": "收藏",
+        "history_empty": "暂无记录",
+        "history_fav_empty": "暂无收藏",
+        "history_copy": "复制",
+        "history_fav": "收藏",
+        "history_unfav": "取消收藏",
+        "history_clear_all": "清空历史",
+        "history_fav_added": "已加入收藏",
+        "history_fav_removed": "已取消收藏",
+        "history_cleared": "历史记录已清空",
     },
     "en": {
         "title": "JNO Input Method",
@@ -208,7 +233,7 @@ T = {
         "search_btn": "Search",
         "vertical": "Vertical",
         "byte_limit": "Byte Limit:",
-        "style": "Style:",
+        "style": "Style",
         "style_normal": "Normal",
         "style_bold": "Bold",
         "style_italic": "Italic",
@@ -244,7 +269,7 @@ T = {
         "about": "About",
         "about_title": "About JNO Input Method",
         "about_text": (
-            "JNO Input Method v1.5\n\n"
+            "JNO Input Method v{version}\n\n"
             "Convert text to JNO Label format.\n"
             "Based on PIL + nearest-neighbor,\n"
             "Full Windows font library.\n\n"
@@ -283,5 +308,18 @@ T = {
         "update_available": "New version v{} available\nCurrent version v{}\n\nGo to download?",
         "update_error": "Update check failed: {}",
         "version": "Version",
+        "history": "History",
+        "history_title": "History & Favorites",
+        "history_tab_recent": "Recent",
+        "history_tab_favorites": "Favorites",
+        "history_empty": "No history",
+        "history_fav_empty": "No favorites",
+        "history_copy": "Copy",
+        "history_fav": "Favorite",
+        "history_unfav": "Unfavorite",
+        "history_clear_all": "Clear History",
+        "history_fav_added": "Added to favorites",
+        "history_fav_removed": "Removed from favorites",
+        "history_cleared": "History cleared",
     },
 }
