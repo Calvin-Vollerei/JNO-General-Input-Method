@@ -1,4 +1,4 @@
-"""JNO通用输入法 主 GUI — v1.6"""
+"""JNO通用输入法 主 GUI — v1.7"""
 
 import json
 import os

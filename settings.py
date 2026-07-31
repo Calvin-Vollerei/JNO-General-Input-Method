@@ -1,8 +1,8 @@
-"""设置弹窗"""
+"""设置弹窗 — v1.7：语言/主题/关闭行为即时生效"""
 
 import tkinter as tk
 from tkinter import ttk
-from config import THEME_NAMES
+from config import THEME_NAMES, THEMES
 
 
 class SettingsDialog(tk.Toplevel):
@@ -15,10 +15,21 @@ class SettingsDialog(tk.Toplevel):
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
+
+        th = THEMES.get(self.app.theme_name, THEMES["高雅灰"])
+        self.configure(bg=th["bg"])
+
+        # 记录原始值，用于判断是否变化
+        self._orig_lang = app.lang
+        self._orig_theme = app.theme_name
+        self._orig_close_minimize = app.close_minimize
+
         self._build()
         self._center(parent)
 
     def _build(self):
+        th = THEMES.get(self.app.theme_name, THEMES["高雅灰"])
+
         f = ttk.Frame(self, padding=15)
         f.pack(fill=tk.BOTH, expand=True)
 
@@ -30,8 +41,6 @@ class SettingsDialog(tk.Toplevel):
         lc = ttk.Combobox(f, textvariable=lv, values=["zh", "en"],
                           state="readonly", width=8)
         lc.grid(row=row, column=1, sticky=tk.W, pady=5, padx=5)
-        lc.bind("<<ComboboxSelected>>",
-                lambda e: setattr(self.app, 'lang', lv.get()))
         row += 1
 
         ttk.Label(f, text=self.t("theme") + ":").grid(
@@ -59,13 +68,25 @@ class SettingsDialog(tk.Toplevel):
         row += 1
 
         def _apply():
-            self.app.lang = lv.get()
-            self.app.theme_name = tv.get()
-            self.app.close_minimize = (
-                close_var.get() == self.t("close_minimize"))
+            new_lang = lv.get()
+            new_theme = tv.get()
+            new_cm = close_var.get() == self.t("close_minimize")
+
+            lang_changed = new_lang != self._orig_lang
+            theme_changed = new_theme != self._orig_theme
+
+            self.app.lang = new_lang
+            self.app.theme_name = new_theme
+            self.app.close_minimize = new_cm
             self.app.save_settings()
-            self.app.apply_theme()
-            self.app.rebuild()   # 语言/关闭行为可能需刷新
+
+            if lang_changed:
+                # 语言变了必须重建 UI（所有文字刷新）
+                self.app.rebuild()
+            elif theme_changed:
+                # 主题变了只需重新应用样式
+                self.app.apply_theme()
+
             self.destroy()
 
         ttk.Button(f, text=self.t("apply"), command=_apply).grid(

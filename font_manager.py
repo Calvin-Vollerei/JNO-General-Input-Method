@@ -17,6 +17,9 @@ class FontManagerDialog(tk.Toplevel):
         self.transient(parent)
         self.grab_set()
 
+        th = THEMES.get(self.app.theme_name, THEMES["高雅灰"])
+        self.configure(bg=th["bg"])
+
         self._all_fonts = app.all_fonts
         self._disabled = app.disabled_fonts
         self._original_disabled = set(app.disabled_fonts)

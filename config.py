@@ -5,7 +5,7 @@ import os
 
 # ── 常量 ──
 
-VERSION = "1.6"
+VERSION = "1.7"
 MAX_BYTES = 30000
 BASE_ROWS = 240
 SCALE_MAX = 1.0

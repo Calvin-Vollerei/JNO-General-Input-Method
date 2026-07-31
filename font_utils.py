@@ -1,8 +1,10 @@
-"""字体扫描、选择、样式增强、UI 字体查找"""
+"""字体扫描、选择、样式增强、UI 字体查找（带缓存）"""
 
 import glob
+import json
 import os
 import sys
+import time
 from typing import List, Tuple
 
 try:
@@ -11,6 +13,21 @@ try:
 except ImportError:
     HAS_PIL = False
 
+
+# ── 缓存路径 ──
+
+def _cache_dir():
+    d = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")),
+                     "JNO-Input-Method")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _cache_path():
+    return os.path.join(_cache_dir(), "font_cache.json")
+
+
+# ── 字体目录 ──
 
 def get_font_dirs() -> List[str]:
     dirs = []
@@ -34,13 +51,9 @@ def get_font_dirs() -> List[str]:
     return [d for d in dirs if os.path.isdir(d)]
 
 
-_font_cache: List[Tuple[str, str]] | None = None
+# ── 实际扫描 ──
 
-
-def scan_fonts() -> List[Tuple[str, str]]:
-    global _font_cache
-    if _font_cache is not None:
-        return _font_cache
+def _do_scan() -> List[Tuple[str, str]]:
     fonts = []
     seen = set()
     for fd in get_font_dirs():
@@ -56,12 +69,49 @@ def scan_fonts() -> List[Tuple[str, str]]:
         not any(k in x[0].lower() for k in cn_kw),
         x[0].lower(),
     ))
-    _font_cache = fonts
     return fonts
 
 
+# ── 带缓存的扫描 ──
+
+def scan_fonts(use_cache: bool = True) -> List[Tuple[str, str]]:
+    """扫描系统字体，优先使用磁盘缓存（24h 有效）"""
+    cache_file = _cache_path()
+    if use_cache and os.path.exists(cache_file):
+        try:
+            with open(cache_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            age = time.time() - data.get("timestamp", 0)
+            if age < 86400:  # 24 小时
+                cached = [(n, p) for n, p in data.get("fonts", [])
+                          if os.path.exists(p)]
+                if cached:
+                    return cached
+        except Exception:
+            pass
+
+    fonts = _do_scan()
+
+    try:
+        with open(cache_file, "w", encoding="utf-8") as f:
+            json.dump({"timestamp": time.time(), "fonts": fonts}, f)
+    except Exception:
+        pass
+
+    return fonts
+
+
+def invalidate_cache():
+    """删除字体缓存，下次启动重新扫描"""
+    try:
+        os.remove(_cache_path())
+    except Exception:
+        pass
+
+
+# ── UI 字体查找 ──
+
 def find_ui_font() -> str:
-    """查找 HarmonyOS Sans SC Bold 用于界面控件，找不到返回第一个可用字体"""
     from config import DEFAULT_UI_FONT, DEFAULT_UI_FONT_FALLBACKS
     all_f = scan_fonts()
     for target in [DEFAULT_UI_FONT] + DEFAULT_UI_FONT_FALLBACKS:
@@ -76,6 +126,8 @@ def find_ui_font() -> str:
         return all_f[0][1]
     return ""
 
+
+# ── 字体匹配 ──
 
 def pick_font(pref: str | None, all_f: List[Tuple[str, str]]) -> str:
     if not all_f:
