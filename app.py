@@ -1,4 +1,4 @@
-"""JNO通用输入法 主 GUI — v1.7"""
+"""JNO通用输入法 主 GUI — v1.8"""
 
 import json
 import os
@@ -6,22 +6,23 @@ import sys
 import threading
 import time
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, messagebox
 import urllib.request
 import webbrowser
 from typing import List, Set, Dict
 
 from config import (
-    VERSION, MAX_BYTES, MAX_RECENT_FONTS, THEMES,
+    VERSION, MAX_BYTES, MAX_RECENT_FONTS, THEMES, COLOR_SLOTS,
     T, load_config, save_config,
-    AUTHOR_GITHUB, AUTHOR_BILIBILI,
+    BYTE_WARN_THRESHOLD,
 )
 from font_utils import scan_fonts, find_ui_font
-from renderer import generate
+from renderer import generate, COLOR_ID_LIST
 from font_manager import FontManagerDialog
-from settings import SettingsDialog
 from history_dialog import HistoryDialog
+from color_picker import ColorPickerDialog
 from ui_utils import apply_round_corners, register_ui_font
+from app_ui import build_menubar, build_ui
 
 
 def _ver_gt(v1: str, v2: str) -> bool:
@@ -49,8 +50,15 @@ class App:
         self.disabled_fonts: Set[str] = set(cfg.get("disabled_fonts", []))
         self.favorites: List[Dict] = cfg.get("favorites", [])
 
+        saved_slots = cfg.get("color_slots", None)
+        if saved_slots and isinstance(saved_slots, list) and len(saved_slots) == COLOR_SLOTS:
+            self.color_slots: List[str] = saved_slots
+        else:
+            self.color_slots = ["#000000"] * COLOR_SLOTS
+        self.active_slot: int = cfg.get("active_slot", 0)
+
         self.history: List[Dict] = []
-        self._last_result = ""          # 最新一条结果，供复制按钮用
+        self._last_result = ""
 
         apply_round_corners(self.root)
         self._ui_font_path = find_ui_font()
@@ -63,6 +71,15 @@ class App:
         self.root.minsize(650, 520)
         self.rebuild()
 
+    # ═══════════════ 基础 ═══════════════
+
+    @property
+    def selected_color(self) -> str | None:
+        """返回当前活动槽位的 JNO Label 标识符（#000000~#181818）。
+        对应 Minecraft JNO Label 中预定义的 25 个墨水槽位。
+        """
+        return COLOR_ID_LIST[self.active_slot]
+
     def save_settings(self):
         save_config({
             "lang": self.lang,
@@ -71,6 +88,8 @@ class App:
             "recent_fonts": self.recent_fonts,
             "disabled_fonts": list(self.disabled_fonts),
             "favorites": self.favorites,
+            "color_slots": self.color_slots,
+            "active_slot": self.active_slot,
         })
 
     def t(self, key: str, *args) -> str:
@@ -78,6 +97,16 @@ class App:
         if args:
             s = s.format(*args)
         return s
+
+    def rebuild(self):
+        for w in self.root.winfo_children():
+            w.destroy()
+        build_menubar(self)
+        build_ui(self)
+        self.apply_theme()
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    # ═══════════════ 字体 ═══════════════
 
     def _get_enabled(self):
         return [(n, p) for n, p in self.all_fonts
@@ -93,161 +122,6 @@ class App:
         self.recent_fonts.insert(0, n)
         self.recent_fonts = self.recent_fonts[:MAX_RECENT_FONTS]
         self.save_settings()
-
-    def rebuild(self):
-        for w in self.root.winfo_children():
-            w.destroy()
-        self._build_menubar()
-        self._build_ui()
-        self.apply_theme()
-        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
-
-    def _build_menubar(self):
-        mb = tk.Menu(self.root)
-
-        m1 = tk.Menu(mb, tearoff=0)
-        m1.add_command(label=self.t("settings"),
-                       command=lambda: SettingsDialog(self.root, self))
-        m1.add_command(label=self.t("font_manager"),
-                       command=self._open_fm)
-        mb.add_cascade(label=self.t("settings"), menu=m1)
-
-        m2 = tk.Menu(mb, tearoff=0)
-        m2.add_command(label=self.t("github"),
-                       command=lambda: webbrowser.open(AUTHOR_GITHUB))
-        m2.add_command(label=self.t("bilibili"),
-                       command=lambda: webbrowser.open(AUTHOR_BILIBILI))
-        m2.add_separator()
-        m2.add_command(label=self.t("about_title"),
-                       command=lambda: messagebox.showinfo(
-                           self.t("about_title"),
-                           self.t("about_text").format(version=VERSION)))
-        mb.add_cascade(label=self.t("about"), menu=m2)
-
-        mb.add_command(label=self.t("help"),
-                       command=lambda: messagebox.showinfo(
-                           self.t("help_title"), self.t("help_text")))
-
-        mb.add_command(label=self.t("history"),
-                       command=self._open_history)
-
-        mb.add_command(label=self.t("update"),
-                       command=self._check_update)
-
-        self.root.config(menu=mb)
-
-    def _build_ui(self):
-        main = ttk.Frame(self.root, padding=10)
-        main.pack(fill=tk.BOTH, expand=True)
-
-        ttk.Label(main, text=self.t("input_label"),
-                  font=("", 11)).pack(anchor=tk.W)
-
-        self.text_entry = tk.Text(main, height=2, font=("", 13), wrap=tk.WORD)
-        self.text_entry.pack(fill=tk.X, pady=(3, 2))
-        self.text_entry.bind("<Control-Return>", lambda e: self._generate())
-        self.text_entry.bind("<Return>", self._handle_return)
-
-        ttk.Label(main, text=self.t("newline_hint"),
-                  foreground="gray", font=("", 8)).pack(
-            anchor=tk.W, pady=(0, 5))
-
-        c1 = ttk.Frame(main)
-        c1.pack(fill=tk.X, pady=(0, 3))
-
-        ttk.Label(c1, text=self.t("font_label")).pack(
-            side=tk.LEFT, padx=(0, 3))
-
-        self._font_filter_var = tk.StringVar()
-        self._font_search_entry = ttk.Entry(
-            c1, textvariable=self._font_filter_var,
-            font=("", 10), width=16)
-        self._font_search_entry.pack(side=tk.LEFT)
-        self._font_filter_placeholder = self.t("font_search")
-        self._font_filter_var.set(self._font_filter_placeholder)
-        self._font_search_entry.bind("<FocusIn>", self._on_filter_focus_in)
-        self._font_search_entry.bind("<FocusOut>", self._on_filter_focus_out)
-        self._font_search_entry.bind(
-            "<Return>", lambda e: self._do_search_and_popup())
-
-        self._search_btn = ttk.Button(
-            c1, text=self.t("search_btn"),
-            command=self._do_search_and_popup, width=6)
-        self._search_btn.pack(side=tk.LEFT, padx=(3, 8))
-
-        fc = self._build_font_choices("")
-        self.font_var = tk.StringVar(value=fc[0] if fc else "")
-        self.font_combo = ttk.Combobox(
-            c1, textvariable=self.font_var, values=fc,
-            width=24, state="readonly")
-        self.font_combo.pack(side=tk.LEFT)
-        self.font_combo.bind(
-            "<<ComboboxSelected>>",
-            lambda e: self._add_recent(self.font_var.get())
-            if self.font_var.get() not in (
-                self.t("font_auto"), self.t("font_recent"),
-                self.t("font_all"))
-            else None)
-
-        ttk.Label(c1, text=self.t("style") + ":").pack(
-            side=tk.LEFT, padx=(15, 0))
-        self.style_var = tk.StringVar(value=self.t("style_normal"))
-        sc = [self.t("style_normal"), self.t("style_bold"),
-              self.t("style_italic"), self.t("style_bold_italic")]
-        self.style_combo = ttk.Combobox(
-            c1, textvariable=self.style_var, values=sc,
-            width=8, state="readonly")
-        self.style_combo.pack(side=tk.LEFT, padx=5)
-
-        c2 = ttk.Frame(main)
-        c2.pack(fill=tk.X, pady=(0, 5))
-
-        self.vertical_var = tk.BooleanVar()
-        ttk.Checkbutton(c2, text=self.t("vertical"),
-                        variable=self.vertical_var).pack(side=tk.LEFT)
-
-        ttk.Label(c2, text=self.t("byte_limit")).pack(
-            side=tk.LEFT, padx=(15, 0))
-        self.bytes_var = tk.IntVar(value=MAX_BYTES)
-        ttk.Spinbox(c2, textvariable=self.bytes_var, from_=5000,
-                    to=200000, increment=5000, width=8).pack(
-            side=tk.LEFT, padx=5)
-
-        self.gen_btn = ttk.Button(c2, text=self.t("generate"),
-                                  command=self._generate)
-        self.gen_btn.pack(side=tk.RIGHT, padx=5)
-
-        self.status_var = tk.StringVar(value=self.t("ready"))
-        sl = tk.Label(main, textvariable=self.status_var,
-                      relief=tk.SUNKEN, anchor=tk.W, padx=4, pady=2)
-        sl.pack(fill=tk.X, pady=(0, 5))
-        self.status_label = sl
-
-        self.result_text = scrolledtext.ScrolledText(
-            main, wrap=tk.CHAR, font=("Consolas", 10))
-        self.result_text.pack(fill=tk.BOTH, expand=True)
-
-        btm = ttk.Frame(main)
-        btm.pack(fill=tk.X, pady=(5, 0))
-        ttk.Button(btm, text=self.t("copy"),
-                   command=self._copy).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btm, text=self.t("save"),
-                   command=self._save).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btm, text=self.t("clear"),
-                   command=self._clear).pack(side=tk.LEFT, padx=2)
-
-        cf = ttk.Frame(self.root)
-        cf.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=(0, 3))
-        ttk.Label(cf, text=self.t("copyright"),
-                  font=("", 7)).pack(side=tk.RIGHT)
-
-    # ═══════════════ 换行修复 ═══════════════
-
-    def _handle_return(self, event):
-        self.text_entry.insert(tk.INSERT, "\n")
-        return "break"
-
-    # ═══════════════ 字体搜索 ═══════════════
 
     def _build_font_choices(self, q: str) -> list:
         auto = self.t("font_auto")
@@ -308,6 +182,38 @@ class App:
         if cur not in choices:
             self.font_var.set(choices[0] if choices else self.t("font_auto"))
 
+    # ═══════════════ 颜色 ═══════════════
+
+    def _open_color_picker(self):
+        ColorPickerDialog(self.root, self)
+
+    def _on_color_changed(self):
+        self._update_color_swatch()
+
+    def _update_color_swatch(self):
+        c = self.color_slots[self.active_slot]
+        if c != "#000000":
+            self._color_swatch.config(bg=c)
+        else:
+            th = THEMES.get(self.theme_name, THEMES["高雅灰"])
+            self._color_swatch.config(bg=th["bg"])
+
+    # ═══════════════ 字节上限 ═══════════════
+
+    def _on_byte_change(self, event=None):
+        self._update_byte_warn()
+
+    def _update_byte_warn(self):
+        try:
+            v = int(self.bytes_var.get())
+        except ValueError:
+            self._byte_warn_label.config(text="")
+            return
+        if v > BYTE_WARN_THRESHOLD:
+            self._byte_warn_label.config(text=self.t("byte_warn"))
+        else:
+            self._byte_warn_label.config(text="")
+
     # ═══════════════ 主题 ═══════════════
 
     def apply_theme(self):
@@ -341,14 +247,6 @@ class App:
                      borderwidth=0)
         st.map("TCombobox",
                fieldbackground=[("readonly", th["entry_bg"])])
-        st.configure("TSpinbox",
-                     fieldbackground=th["entry_bg"],
-                     background=th["entry_bg"],
-                     foreground=th["entry_fg"],
-                     font=fn,
-                     selectbackground=th["select_bg"],
-                     selectforeground=th["select_fg"],
-                     borderwidth=0)
         st.configure("TEntry",
                      fieldbackground=th["entry_bg"],
                      foreground=th["entry_fg"],
@@ -383,6 +281,9 @@ class App:
             except Exception:
                 pass
 
+        self._update_color_swatch()
+        self._update_byte_warn()
+
     # ═══════════════ 生成 ═══════════════
 
     def _get_style(self):
@@ -394,6 +295,10 @@ class App:
         if s == self.t("style_bold_italic"):
             return 3
         return 0
+
+    def _handle_return(self, event):
+        self.text_entry.insert(tk.INSERT, "\n")
+        return "break"
 
     def _generate(self):
         text = self.text_entry.get("1.0", tk.END).rstrip("\n").rstrip()
@@ -412,7 +317,18 @@ class App:
             fc = ""
 
         v = self.vertical_var.get()
-        mb = self.bytes_var.get()
+        try:
+            mb = int(self.bytes_var.get())
+        except ValueError:
+            mb = MAX_BYTES
+
+        if mb > BYTE_WARN_THRESHOLD:
+            if not messagebox.askyesno(
+                self.t("title"),
+                self.t("byte_warn") + "\n\n" + self.t("generate") + "?",
+            ):
+                return
+
         stl = self._get_style()
         style_name = self.style_var.get()
 
@@ -420,12 +336,16 @@ class App:
                             text=self.t("generating"))
         self.status_var.set(self.t("generating") + "...")
 
+        color_for_render = self.selected_color
+
         def _log(m):
             self.root.after(0, lambda: self.status_var.set(m))
 
         def _run():
             try:
-                r = generate(text, fc, mb, v, stl, callback=_log)
+                r = generate(text, fc, mb, v, stl,
+                             color_hex=color_for_render,
+                             callback=_log)
             except Exception as exc:
                 msg = str(exc)
                 self.root.after(0, lambda m=msg: self._on_err(m))
@@ -547,7 +467,7 @@ class App:
 
         threading.Thread(target=_run, daemon=True).start()
 
-    # ═══════════════ 关闭行为 ═══════════════
+    # ═══════════════ 关闭 ═══════════════
 
     def _on_close(self):
         if self.close_minimize:
@@ -558,3 +478,5 @@ class App:
 
     def run(self):
         self.root.mainloop()
+
+

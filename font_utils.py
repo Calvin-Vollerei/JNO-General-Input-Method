@@ -75,14 +75,13 @@ def _do_scan() -> List[Tuple[str, str]]:
 # ── 带缓存的扫描 ──
 
 def scan_fonts(use_cache: bool = True) -> List[Tuple[str, str]]:
-    """扫描系统字体，优先使用磁盘缓存（24h 有效）"""
     cache_file = _cache_path()
     if use_cache and os.path.exists(cache_file):
         try:
             with open(cache_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
             age = time.time() - data.get("timestamp", 0)
-            if age < 86400:  # 24 小时
+            if age < 86400:
                 cached = [(n, p) for n, p in data.get("fonts", [])
                           if os.path.exists(p)]
                 if cached:
@@ -102,7 +101,6 @@ def scan_fonts(use_cache: bool = True) -> List[Tuple[str, str]]:
 
 
 def invalidate_cache():
-    """删除字体缓存，下次启动重新扫描"""
     try:
         os.remove(_cache_path())
     except Exception:
@@ -163,6 +161,8 @@ def _detect_variant(font_path: str, suffixes: List[str]) -> str | None:
     return None
 
 
+# ── 斜体模拟 ──
+
 def apply_italic(mask: Image.Image) -> Image.Image:
     w, h = mask.size
     shear = 0.25
@@ -179,6 +179,8 @@ def apply_italic(mask: Image.Image) -> Image.Image:
                     px_dst[dst_x, y] = px_src[x, y]
     return result
 
+
+# ── 文字 mask 渲染（修复加粗：直接在原 mask 上偏移绘制）──
 
 def render_text_mask(text: str, font_path: str, style: int,
                      hires_h: int, hires_w: int) -> Image.Image:
@@ -205,28 +207,19 @@ def render_text_mask(text: str, font_path: str, style: int,
 
     lines = text.split("\n")
     total_h = len(lines) * int(hires_h * 0.95)
+
     for li, line in enumerate(lines):
         bbox = draw.textbbox((0, 0), line, font=font)
         tw = bbox[2] - bbox[0]
         y_off = li * int(hires_h * 0.95) + (hires_h - total_h) // 2
-        draw.text(((hires_w - tw) // 2 - bbox[0], y_off),
-                  line, fill=255, font=font)
+        x_off = (hires_w - tw) // 2 - bbox[0]
 
-    if style == 1 or style == 3:
-        mask2 = Image.new("L", (hires_w, hires_h), 0)
-        draw2 = ImageDraw.Draw(mask2)
-        for li, line in enumerate(lines):
-            bbox = draw2.textbbox((0, 0), line, font=font)
-            tw = bbox[2] - bbox[0]
-            y_off = li * int(hires_h * 0.95) + (hires_h - total_h) // 2
+        # 加粗：直接在 mask 上四个方向偏移绘制
+        if style == 1 or style == 3:
             for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
-                draw2.text(((hires_w - tw) // 2 - bbox[0] + dx,
-                            y_off + dy), line, fill=255, font=font)
-        px1, px2 = mask.load(), mask2.load()
-        for y in range(hires_h):
-            for x in range(hires_w):
-                if px2[x, y] > 0:
-                    px1[x, y] = 255
+                draw.text((x_off + dx, y_off + dy),
+                          line, fill=255, font=font)
+        draw.text((x_off, y_off), line, fill=255, font=font)
 
     if style == 2 or style == 3:
         mask = apply_italic(mask)

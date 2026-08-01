@@ -5,7 +5,7 @@ import os
 
 # ── 常量 ──
 
-VERSION = "1.7"
+VERSION = "1.8"
 MAX_BYTES = 30000
 BASE_ROWS = 240
 SCALE_MAX = 1.0
@@ -121,6 +121,24 @@ def save_config(cfg: dict):
         json.dump(cfg, f, ensure_ascii=False, indent=2)
 
 
+# ── 字节上限分段档位 ──
+
+def build_byte_values():
+    vals = []
+    for v in range(100, 1000 + 1, 100):
+        vals.append(v)
+    for v in range(2000, 10000 + 1, 1000):
+        vals.append(v)
+    for v in range(15000, 30000 + 1, 5000):
+        vals.append(v)
+    return vals
+
+
+BYTE_VALUES = build_byte_values()
+BYTE_WARN_THRESHOLD = 15000
+COLOR_SLOTS = 25
+
+
 T = {
     "zh": {
         "title": "JNO通用输入法",
@@ -170,11 +188,19 @@ T = {
         "about_title": "关于 JNO通用输入法",
         "about_text": (
             "JNO通用输入法 v{version}\n\n"
-            "将文字转换为适用于JNO Label的形式。\n"
-            "基于 PIL 渲染 + 最近邻降采样，\n"
-            "支持全 Windows 字体库。\n\n"
-            "Calvin Vollerei Studio\n"
-            "All rights Reserved（2022-2026）"
+            "将文字渲染为 ASCII 点阵，输出格式兼容\n"
+            "JNO Label 插件（Jpixel 格式）。\n"
+            "基于 PIL 高分辨率渲染 + 最近邻降采样，\n"
+            "支持全 Windows 系统字体库。\n\n"
+            "特性：\n"
+            "  • 横排 / 竖排\n"
+            "  • 常规 / 加粗 / 斜体 / 粗斜体\n"
+            "  • 6 套界面主题\n"
+            "  • 中英双语界面\n"
+            "  • 25 色墨水槽位（对应 JNO Label 色板）\n"
+            "  • 历史记录与收藏\n"
+            "  • 字节上限自适应缩放\n\n"
+            "Calvin Vollerei Studio（2022-2026）"
         ),
         "github": "GitHub",
         "bilibili": "B站主页",
@@ -188,19 +214,40 @@ T = {
         "help_title": "JNO通用输入法 — 帮助",
         "help_text": (
             "【快捷键】\n"
-            "  Enter         —  输入框中换行\n"
-            "  Ctrl+Enter    —  生成点阵\n"
-            "  搜索框回车     —  搜索字体并弹出下拉\n\n"
-            "【功能】\n"
-            "  字体搜索  —  在搜索框输入关键字，点击搜索按钮\n"
-            "  字体管理  —  通用 → 字体管理，勾选启用的字体\n"
-            "  样式      —  常规 / 加粗 / 斜体 / 粗斜体\n"
-            "  横排/竖排 —  勾选「竖排」切换排版方向\n"
-            "  主题      —  通用中选择 6 套配色\n"
-            "  字节上限  —  控制输出大小，自动缩放适配\n\n"
-            "【输出】\n"
-            "  输出结果可粘贴到JNO Label\n"
-            "  也可保存为 .txt 文件"
+            "  Enter              —  输入框中换行\n"
+            "  Ctrl+Enter         —  生成点阵\n"
+            "  搜索框回车          —  搜索字体并弹出下拉\n\n"
+            "【文本输入】\n"
+            "  支持任意语言文字（中日韩、拉丁等）。\n"
+            "  单次最多 80 字符，超出自动截断。\n"
+            "  Enter 换行，Ctrl+Enter 生成。\n\n"
+            "【字体】\n"
+            "  搜索框输入关键字 → 点击「搜索」或回车。\n"
+            "  下拉列表按「最近使用 / 全部字体」分组。\n"
+            "  通过 通用 → 字体管理 可启用/禁用字体。\n\n"
+            "【样式】\n"
+            "  常规 / 加粗 / 斜体 / 粗斜体。\n"
+            "  优先使用字体内置变体文件，无变体则代码模拟。\n\n"
+            "【排版方向】\n"
+            "  横排：从左到右逐行输出。\n"
+            "  竖排：从上到下逐字排列。\n\n"
+            "【颜色】\n"
+            "  点击色块打开 5×5 颜色槽位面板。\n"
+            "  25 个槽位对应 JNO Label 预定义墨水槽。\n"
+            "  点击槽位选中，输入 #RRGGBB 染色（仅可视化）。\n"
+            "  输出中使用 JNO 槽位标识符 <#000000> ~ <#181818>。\n"
+            "  点击「应用」生效，「重置」将当前槽位恢复黑色。\n\n"
+            "【字节上限】\n"
+            "  控制输出总大小，程序自动缩放适配。\n"
+            "  下拉提供分段建议值（100~30000），也可双击自行输入。\n"
+            "  超过 15000 字节将弹出性能警告。\n\n"
+            "【输出格式】\n"
+            "  输出为 Jpixel 格式，可直接粘贴到 JNO Label。\n"
+            "  长空格自动合并为 <space=N> 标签以节约字节。\n"
+            "  也可保存为 .txt 文件。\n\n"
+            "【主题】\n"
+            "  通用 中选择：高雅灰 / 典雅黑 / 简洁白 /\n"
+            "  希儿紫 / 天依蓝 / 初音绿。即时生效。"
         ),
         "update": "检查更新",
         "update_checking": "正在检查更新...",
@@ -221,6 +268,14 @@ T = {
         "history_fav_added": "已加入收藏",
         "history_fav_removed": "已取消收藏",
         "history_cleared": "历史记录已清空",
+        "color_label": "颜色:",
+        "color_slot_title": "颜色槽位",
+        "color_value": "颜色值:",
+        "color_apply": "应用",
+        "color_reset": "重置",
+        "color_none": "（默认黑）",
+        "color_invalid": "无效的颜色格式（需 #RRGGBB）",
+        "byte_warn": "⚠ 输出较大，可能影响性能",
     },
     "en": {
         "title": "JNO Input Method",
@@ -270,11 +325,19 @@ T = {
         "about_title": "About JNO Input Method",
         "about_text": (
             "JNO Input Method v{version}\n\n"
-            "Convert text to JNO Label format.\n"
-            "Based on PIL + nearest-neighbor,\n"
-            "Full Windows font library.\n\n"
-            "Calvin Vollerei Studio\n"
-            "All rights Reserved (2022-2026)"
+            "Converts text to ASCII dot art compatible with\n"
+            "JNO Label plugin (Jpixel format).\n"
+            "Uses PIL high-res rendering + nearest-neighbor\n"
+            "downscaling. Supports all Windows system fonts.\n\n"
+            "Features:\n"
+            "  • Horizontal / Vertical layout\n"
+            "  • Normal / Bold / Italic / Bold Italic styles\n"
+            "  • 6 UI themes\n"
+            "  • Chinese / English UI\n"
+            "  • 25 ink slots (JNO Label palette)\n"
+            "  • History & Favorites\n"
+            "  • Byte limit with auto-scaling\n\n"
+            "Calvin Vollerei Studio (2022-2026)"
         ),
         "github": "GitHub",
         "bilibili": "Bilibili",
@@ -288,19 +351,43 @@ T = {
         "help_title": "JNO Input Method — Help",
         "help_text": (
             "[Shortcuts]\n"
-            "  Enter          —  New line in input box\n"
-            "  Ctrl+Enter     —  Generate dot art\n"
-            "  Enter in search —  Search fonts & popup list\n\n"
-            "[Features]\n"
-            "  Font Search  —  Type keyword in search box, click Search\n"
-            "  Font Manager —  General → Font Manager, check enabled fonts\n"
-            "  Style        —  Normal / Bold / Italic / Bold Italic\n"
-            "  Horizontal/Vertical — Check 「Vertical」to switch\n"
-            "  Theme        —  Choose from 6 color schemes\n"
-            "  Byte Limit   —  Auto-scale output to fit\n\n"
-            "[Output]\n"
-            "  Output can be pasted to JNO Label\n"
-            "  Or saved as .txt file"
+            "  Enter              —  New line in input box\n"
+            "  Ctrl+Enter         —  Generate dot art\n"
+            "  Enter in search    —  Search fonts & show list\n\n"
+            "[Text Input]\n"
+            "  Supports all languages (CJK, Latin, etc.).\n"
+            "  Max 80 chars per generation (auto-truncated).\n"
+            "  Enter for newline, Ctrl+Enter to generate.\n\n"
+            "[Fonts]\n"
+            "  Type keyword in search box → click Search or Enter.\n"
+            "  Dropdown grouped by Recent / All Fonts.\n"
+            "  Enable/disable fonts via General → Font Manager.\n\n"
+            "[Style]\n"
+            "  Normal / Bold / Italic / Bold Italic.\n"
+            "  Uses native font variants if available,\n"
+            "  falls back to software simulation.\n\n"
+            "[Layout]\n"
+            "  Horizontal: left-to-right line by line.\n"
+            "  Vertical: top-to-bottom character by character.\n\n"
+            "[Color]\n"
+            "  Click the color swatch to open 5×5 slot panel.\n"
+            "  25 slots mapped to JNO Label predefined ink slots.\n"
+            "  Click a slot to select, enter #RRGGBB to colorize\n"
+            "  (visual preview only, output uses slot ID).\n"
+            "  Output format: <#000000> ~ <#181818>.\n"
+            "  Click Apply to confirm, Reset to clear current slot.\n\n"
+            "[Byte Limit]\n"
+            "  Controls max output size — auto-scales to fit.\n"
+            "  Dropdown provides suggested values (100~30000).\n"
+            "  You may also double click to type a custom value.\n"
+            "  Warning shown above 15000 bytes.\n\n"
+            "[Output Format]\n"
+            "  Output is Jpixel format, paste directly into JNO Label.\n"
+            "  Long spaces auto-merged to <space=N> to save bytes.\n"
+            "  Can also be saved as .txt file.\n\n"
+            "[Themes]\n"
+            "  General → choose from: Gray / Dark / White /\n"
+            "  Seele / Tianyi / Miku. Instant apply."
         ),
         "update": "Check Update",
         "update_checking": "Checking for updates...",
@@ -321,5 +408,15 @@ T = {
         "history_fav_added": "Added to favorites",
         "history_fav_removed": "Removed from favorites",
         "history_cleared": "History cleared",
+        "color_label": "Color:",
+        "color_slot_title": "Color Slots",
+        "color_value": "Color Value:",
+        "color_apply": "Apply",
+        "color_reset": "Reset",
+        "color_none": "(Default Black)",
+        "color_invalid": "Invalid color format (use #RRGGBB)",
+        "byte_warn": "⚠ Large output, may affect performance",
     },
 }
+
+
